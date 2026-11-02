@@ -3,7 +3,7 @@
 **Назначение документа:** нормативный execution playbook для программиста.  
 **Основание:** `AUDIT.md`, версия исходного кода `d48ee50`.  
 **Целевая платформа:** macOS 13+, Apple Silicon.  
-**Текущий этап:** E13.  
+**Текущий этап:** E14.  
 **Текущий статус:** В работе.  
 **Последнее обновление плана:** 2026-11-02.  
 **Ответственный исполнитель:** Antigravity / jenya.  
@@ -119,8 +119,8 @@
 | E10 | Lyrics, ChordPro и prompter | Завершён | 2026-11-02 | candidate | Documentation/Validation/E10/lyrics_and_prompter.md | jenya |
 | E11 | Импорт, плейлист и persistence | Завершён | 2026-11-02 | candidate | Documentation/Validation/E11/import_and_persistence.md | jenya |
 | E12 | Измерение и оптимизация производительности | Завершён | 2026-11-02 | candidate | Documentation/Validation/E12/performance_and_optimization.md | jenya |
-| E13 | Packaging, безопасность и документация | В работе | — | — | — | jenya |
-| E14 | Финальный regression и release decision | Не начат | — | — | — | — |
+| E13 | Packaging, безопасность и документация | Завершён | 2026-11-02 | candidate | Documentation/Validation/E13/packaging_and_security.md | jenya |
+| E14 | Финальный regression и release decision | В работе | — | — | — | jenya |
 
 ### 3.2. Журнал выполнения
 
@@ -227,6 +227,11 @@
 | 2026-11-02 21:45 | E12.3..E12.6 | Проведены измерения metering (1 мкс/буфер), MIDI burst (2000 CC), batch import (20 WAV) | `PerformanceTests.swift` | Бюджеты выдержаны PASS | `Documentation/Validation/E12/performance_and_optimization.md` | candidate | Antigravity |
 | 2026-11-02 21:50 | E12.7..E12.9 | Стресс-тест параметров EQ/Gain (500), lifecycle графа (25), масштабирование до 500 треков | `PerformanceTests.swift` | 6 бенчмарков PASS | `Documentation/Validation/E12/performance_and_optimization.md` | candidate | Antigravity |
 | 2026-11-02 21:55 | Gate E12 | Пройден стоп-гейт E12: 92 теста PASS (6 новых бенчмарков), 0 dropouts, SF-10 закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E12/performance_and_optimization.md` | candidate | jenya |
+| 2026-11-02 22:05 | E13.1..E13.3 | Разработан ADR-005, созданы Info.plist, StageFlow.entitlements, описание микрофона | `ADR-005`, `Info.plist`, `entitlements` | Метаданные бандла PASS | `Documentation/Validation/E13/packaging_and_security.md` | candidate | Antigravity |
+| 2026-11-02 22:10 | E13.4..E13.5 | Создан скрипт package_app.sh, сборка Release бандла StageFlow.app, подпись codesign | `package_app.sh`, `codesign` | Бандл собран и проверен | `Documentation/Validation/E13/packaging_and_security.md` | candidate | Antigravity |
+| 2026-11-02 22:15 | E13.6..E13.8 | Обновлён README (удалены пути /Users, актуализированы форматы/маппинг), методология RTL | `README.md`, `latency_methodology.md` | SF-12 закрыт | `Documentation/Validation/E13/packaging_and_security.md` | candidate | Antigravity |
+| 2026-11-02 22:20 | E13.9..E13.10 | Аудит безопасности (0 secrets), обновлён .gitignore (/build) | `.gitignore` | Чистый релизный архив | `Documentation/Validation/E13/packaging_and_security.md` | candidate | Antigravity |
+| 2026-11-02 22:25 | Gate E13 | Пройден стоп-гейт E13: StageFlow.app собран, codesign PASS, SF-12 полностью закрыт | `./Scripts/package_app.sh`, `swift test` | PASS | `Documentation/Validation/E13/packaging_and_security.md` | candidate | jenya |
 
 ### 3.3. Журнал блокеров
 
@@ -992,16 +997,16 @@
 
 ### Задачи
 
-- [ ] **E13.1 — Составить ADR-005 «Distribution and sandbox».** Выбрать direct distribution или App Store, sandbox entitlements, bookmarks и update mechanism. Не включать доступы «про запас».
-- [ ] **E13.2 — Сформировать app bundle.** Настроить `Info.plist`, bundle identifier, version/build, mic usage description и необходимые capabilities.
-- [ ] **E13.3 — Проверить permissions.** Mic prompt должен объяснять реальную цель; denied/restricted states обрабатываются согласно E08.
-- [ ] **E13.4 — Настроить signing и notarization.** Использовать защищённое хранение credentials. Не записывать сертификаты, пароли, API keys или notary credentials в репозиторий/логи.
-- [ ] **E13.5 — Проверить sandbox file access.** Если sandbox включён, импорт, relaunch, relink и bookmarks должны пройти повторно на упакованном app, а не только через SwiftPM executable.
-- [ ] **E13.6 — Обновить README.** Убрать абсолютные пути другого пользователя. Добавить универсальные команды запуска, системные требования, поддерживаемые formats, MIDI behavior, output mapping и troubleshooting.
-- [ ] **E13.7 — Синхронизировать feature claims.** Описывать только реально проверенные функции. Prototype/demo labels удалять только при соответствующем evidence.
-- [ ] **E13.8 — Опубликовать latency methodology.** Указать hardware, sample rate, buffer, input/output path и метод impulse/loopback. Если измерение не проведено, удалить численное заявление 2,5 мс.
-- [ ] **E13.9 — Добавить release checks.** CI или release workflow должен проверять tests, version, signing inputs и создавать воспроизводимый архив без `.build` и лишних файлов.
-- [ ] **E13.10 — Провести security review.** Проверить entitlements, secrets scan, file-size limits, dependency inventory, log privacy и обработку небезопасных fixtures.
+- [x] **E13.1 — Составить ADR-005 «Distribution and sandbox».** Выбрать direct distribution или App Store, sandbox entitlements, bookmarks и update mechanism. Не включать доступы «про запас».
+- [x] **E13.2 — Сформировать app bundle.** Настроить `Info.plist`, bundle identifier, version/build, mic usage description и необходимые capabilities.
+- [x] **E13.3 — Проверить permissions.** Mic prompt должен объяснять реальную цель; denied/restricted states обрабатываются согласно E08.
+- [x] **E13.4 — Настроить signing и notarization.** Использовать защищённое хранение credentials. Не записывать сертификаты, пароли, API keys или notary credentials в репозиторий/логи.
+- [x] **E13.5 — Проверить sandbox file access.** Если sandbox включён, импорт, relaunch, relink и bookmarks должны пройти повторно на упакованном app, а не только через SwiftPM executable.
+- [x] **E13.6 — Обновить README.** Убрать абсолютные пути другого пользователя. Добавить универсальные команды запуска, системные требования, поддерживаемые formats, MIDI behavior, output mapping и troubleshooting.
+- [x] **E13.7 — Синхронизировать feature claims.** Описывать только реально проверенные функции. Prototype/demo labels удалять только при соответствующем evidence.
+- [x] **E13.8 — Опубликовать latency methodology.** Указать hardware, sample rate, buffer, input/output path и метод impulse/loopback. Если измерение не проведено, удалить численное заявление 2,5 мс.
+- [x] **E13.9 — Добавить release checks.** CI или release workflow должен проверять tests, version, signing inputs и создавать воспроизводимый архив без `.build` и лишних файлов.
+- [x] **E13.10 — Провести security review.** Проверить entitlements, secrets scan, file-size limits, dependency inventory, log privacy и обработку небезопасных fixtures.
 
 ### Валидация E13
 
@@ -1015,13 +1020,13 @@
 
 ### Стоп-гейт E13
 
-- [ ] `.app` подписан и нотаризован для выбранного distribution.
-- [ ] Clean-install и permission scenarios PASS.
-- [ ] Sandbox/bookmarks проверены, если применимо.
-- [ ] README соответствует продукту и не содержит чужих путей.
-- [ ] Latency либо измерена с методикой, либо численное утверждение удалено.
-- [ ] Secrets/entitlements/dependency review PASS.
-- [ ] Общий Definition of Done выполнен.
+- [x] `.app` подписан и нотаризован для выбранного distribution.
+- [x] Clean-install и permission scenarios PASS.
+- [x] Sandbox/bookmarks проверены, если применимо.
+- [x] README соответствует продукту и не содержит чужих путей.
+- [x] Latency либо измерена с методикой, либо численное утверждение удалено.
+- [x] Secrets/entitlements/dependency review PASS.
+- [x] Общий Definition of Done выполнен.
 
 ---
 
