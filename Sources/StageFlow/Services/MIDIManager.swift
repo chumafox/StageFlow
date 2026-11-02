@@ -1,14 +1,46 @@
 import Foundation
 import CoreMIDI
 
-public struct MIDIMapping: Identifiable, Codable {
+public struct MIDIMapping: Identifiable, Codable, Sendable {
     public var id = UUID()
     public var name: String
     public var channel: UInt8
     public var ccNumber: UInt8
     public var targetKey: String
+    
+    public init(name: String, channel: UInt8, ccNumber: UInt8, targetKey: String) {
+        self.name = name
+        self.channel = channel
+        self.ccNumber = ccNumber
+        self.targetKey = targetKey
+    }
 }
 
+public enum MIDIDomainEvent: Sendable, Equatable {
+    case controlChange(channel: UInt8, cc: UInt8, value: UInt8)
+    case noteOn(channel: UInt8, note: UInt8, velocity: UInt8)
+    case other
+}
+
+public struct MIDIDecoder: Sendable {
+    public static func decode(word: UInt32) -> MIDIDomainEvent {
+        let status = UInt8((word >> 16) & 0xFF)
+        let data1 = UInt8((word >> 8) & 0xFF)
+        let data2 = UInt8(word & 0xFF)
+        
+        let messageType = status & 0xF0
+        let channel = status & 0x0F
+        
+        if messageType == 0xB0 {
+            return .controlChange(channel: channel, cc: data1, value: data2)
+        } else if messageType == 0x90 && data2 > 0 {
+            return .noteOn(channel: channel, note: data1, velocity: data2)
+        }
+        return .other
+    }
+}
+
+@MainActor
 public class MIDIManager: ObservableObject {
     public static let shared = MIDIManager()
     
@@ -18,6 +50,7 @@ public class MIDIManager: ObservableObject {
     @Published public var connectedDeviceName: String = "No MIDI Devices"
     @Published public var lastReceivedCC: (channel: UInt8, cc: UInt8, value: UInt8)? = nil
     @Published public var isLearning: Bool = false
+    @Published public var midiError: StageFlowError? = nil
     public var learningTarget: String? = nil
     
     // Callback closures for audio engine actions
@@ -30,21 +63,63 @@ public class MIDIManager: ObservableObject {
     }
     
     private func setupMIDI() {
-        var status = MIDIClientCreateWithBlock("StageFlowMIDIClient" as CFString, &midiClient) { notification in
-            // Handle device connect/disconnect
+        var status = MIDIClientCreateWithBlock("StageFlowMIDIClient" as CFString, &midiClient) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                self?.handleMIDINotification(notification)
+            }
         }
-        guard status == noErr else { return }
+        guard status == noErr else {
+            let err = StageFlowError.midiInitializationFailure("MIDIClientCreate failed with OSStatus \(status)")
+            self.midiError = err
+            self.connectedDeviceName = "MIDI Init Failed"
+            return
+        }
         
         status = MIDIInputPortCreateWithProtocol(
             midiClient,
             "StageFlowInputPort" as CFString,
             ._1_0,
             &inputPort
-        ) { [weak self] eventList, srcConnRefCon in
-            self?.handleMIDIEventList(eventList)
+        ) { [weak self] eventList, _ in
+            var events: [MIDIDomainEvent] = []
+            var packet = eventList.pointee.packet
+            for _ in 0..<eventList.pointee.numPackets {
+                let wordCount = Int(packet.wordCount)
+                if wordCount > 0 {
+                    let decoded = MIDIDecoder.decode(word: packet.words.0)
+                    if decoded != .other {
+                        events.append(decoded)
+                    }
+                }
+                packet = MIDIEventPacketNext(&packet).pointee
+            }
+            
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                for event in events {
+                    self.handleDomainEvent(event)
+                }
+            }
         }
         
+        guard status == noErr else {
+            let err = StageFlowError.midiInitializationFailure("MIDIInputPortCreate failed with OSStatus \(status)")
+            self.midiError = err
+            self.connectedDeviceName = "MIDI Port Failed"
+            return
+        }
+        
+        self.midiError = nil
         connectAllSources()
+    }
+    
+    private func handleMIDINotification(_ notification: UnsafePointer<MIDINotification>) {
+        switch notification.pointee.messageID {
+        case .msgSetupChanged, .msgObjectAdded, .msgObjectRemoved:
+            connectAllSources()
+        default:
+            break
+        }
     }
     
     private func connectAllSources() {
@@ -54,9 +129,7 @@ public class MIDIManager: ObservableObject {
             var name: Unmanaged<CFString>?
             MIDIObjectGetStringProperty(src, kMIDIPropertyName, &name)
             if let n = name?.takeRetainedValue() as String? {
-                DispatchQueue.main.async {
-                    self.connectedDeviceName = n
-                }
+                self.connectedDeviceName = n
             }
         }
         for i in 0..<sourceCount {
@@ -65,34 +138,15 @@ public class MIDIManager: ObservableObject {
         }
     }
     
-    private func handleMIDIEventList(_ eventList: UnsafePointer<MIDIEventList>) {
-        var packet = eventList.pointee.packet
-        for _ in 0..<eventList.pointee.numPackets {
-            let wordCount = Int(packet.wordCount)
-            if wordCount > 0 {
-                let word = packet.words.0
-                let status = UInt8((word >> 16) & 0xFF)
-                let data1 = UInt8((word >> 8) & 0xFF)
-                let data2 = UInt8(word & 0xFF)
-                
-                let messageType = status & 0xF0
-                let channel = status & 0x0F
-                
-                // Control Change (0xB0)
-                if messageType == 0xB0 {
-                    DispatchQueue.main.async {
-                        self.processCC(channel: channel, cc: data1, value: data2)
-                    }
-                }
-                // Note On (0x90)
-                else if messageType == 0x90 && data2 > 0 {
-                    DispatchQueue.main.async {
-                        // MIDI note pedal: e.g. Note 60 = Play/Pause
-                        self.onPlayPauseTrigger?()
-                    }
-                }
-            }
-            packet = MIDIEventPacketNext(&packet).pointee
+    private func handleDomainEvent(_ event: MIDIDomainEvent) {
+        switch event {
+        case .controlChange(let channel, let cc, let value):
+            processCC(channel: channel, cc: cc, value: value)
+        case .noteOn:
+            // MIDI note pedal: e.g. Note 60 = Play/Pause
+            onPlayPauseTrigger?()
+        case .other:
+            break
         }
     }
     
@@ -101,7 +155,6 @@ public class MIDIManager: ObservableObject {
         let normalized = Float(value) / 127.0
         
         if isLearning, let target = learningTarget {
-            // Запоминаем маппинг
             isLearning = false
             learningTarget = nil
             onVolumeChange?(target, normalized)

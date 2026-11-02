@@ -32,17 +32,17 @@ public struct PlaylistView: View {
             
             Divider()
             
-            List(selection: $appState.selectedTrack) {
+            List(selection: $appState.selectedTrackID) {
                 ForEach(appState.playlist) { track in
                     HStack(spacing: 8) {
-                        Image(systemName: appState.selectedTrack?.id == track.id ? "music.note" : "circle.fill")
+                        Image(systemName: appState.selectedTrackID == track.id ? "music.note" : "circle.fill")
                             .font(.system(size: 8))
-                            .foregroundColor(appState.selectedTrack?.id == track.id ? .accentColor : .gray.opacity(0.4))
+                            .foregroundColor(appState.selectedTrackID == track.id ? .accentColor : .gray.opacity(0.4))
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(track.title)
-                                .font(.system(size: 12, weight: appState.selectedTrack?.id == track.id ? .bold : .regular))
-                                .foregroundColor(appState.selectedTrack?.id == track.id ? .accentColor : .primary)
+                                .font(.system(size: 12, weight: appState.selectedTrackID == track.id ? .bold : .regular))
+                                .foregroundColor(appState.selectedTrackID == track.id ? .accentColor : .primary)
                                 .lineLimit(1)
                             
                             Text(track.artist)
@@ -59,7 +59,7 @@ public struct PlaylistView: View {
                     .padding(.vertical, 2)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        appState.selectedTrack = track
+                        appState.selectedTrackID = track.id
                         onTrackSelected(track)
                     }
                 }
@@ -81,8 +81,8 @@ public struct PlaylistView: View {
                 let lyrics = LyricsParser.extractLyrics(from: url)
                 let newTrack = SongTrack(title: title, fileURL: url, duration: 180, lyrics: lyrics)
                 appState.playlist.append(newTrack)
-                if appState.selectedTrack == nil {
-                    appState.selectedTrack = newTrack
+                if appState.selectedTrackID == nil {
+                    appState.selectedTrackID = newTrack.id
                     onTrackSelected(newTrack)
                 }
             }

@@ -20,11 +20,11 @@ public struct StageFlowMainView: View {
                     Spacer()
                     
                     Circle()
-                        .fill(audio.isPlaying ? Color.green : Color.orange)
+                        .fill(onAirColor)
                         .frame(width: 8, height: 8)
-                    Text(audio.isPlaying ? "ON AIR" : "PAUSED")
+                    Text(onAirText)
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(audio.isPlaying ? .green : .orange)
+                        .foregroundColor(onAirColor)
                     
                     // MIDI Indicator
                     Image(systemName: "pianokeys")
@@ -37,10 +37,11 @@ public struct StageFlowMainView: View {
                 
                 Divider()
                 
-                // Переключатель вкладок левой панели: Микшер / Плейлист
+                // Переключатель вкладок левой панели: Микшер / Плейлист / Диагностика
                 Picker("", selection: $appState.selectedTab) {
                     Text("Live Mixer 🎛️").tag(0)
                     Text("Setlist 📜 (\(appState.playlist.count))").tag(1)
+                    Text("Diagnostics 🩺").tag(2)
                 }
                 .pickerStyle(.segmented)
                 .padding(8)
@@ -51,20 +52,30 @@ public struct StageFlowMainView: View {
                         VStack(spacing: 14) {
                             // 1. Backing Track Channel Strip
                             VStack(spacing: 8) {
-                                HStack {
+                                HStack(spacing: 6) {
                                     Text("BACKING TRACK 🎵")
                                         .font(.system(size: 11, weight: .heavy))
                                         .foregroundColor(.white)
                                     Spacer()
-                                    Text(appState.selectedTrack?.title ?? "Demo Loop")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
+                                    Button(audio.trackIsMuted ? "MUTED" : "MUTE") {
+                                        audio.trackIsMuted.toggle()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(audio.trackIsMuted ? .red : .gray.opacity(0.5))
+                                    .controlSize(.mini)
+                                    
+                                    Button("SOLO") {
+                                        audio.trackIsSolo.toggle()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(audio.trackIsSolo ? .yellow : .gray.opacity(0.5))
+                                    .foregroundColor(audio.trackIsSolo ? .black : .white)
+                                    .controlSize(.mini)
                                 }
                                 
                                 HStack(spacing: 12) {
-                                    VerticalFader(title: "FOH Out", value: $audio.trackFOHVolume, peak: audio.fohPeak, tintColor: .blue)
-                                    VerticalFader(title: "In-Ear", value: $audio.trackIEMVolume, peak: audio.iemPeak, tintColor: .purple)
+                                    VerticalFader(title: "FOH Out", value: $audio.trackFOHVolume, peak: audio.backingPeak, isClipping: audio.backingClipping, tintColor: .blue)
+                                    VerticalFader(title: "In-Ear", value: $audio.trackIEMVolume, peak: audio.backingPeak, isClipping: audio.backingClipping, tintColor: .purple)
                                     Spacer()
                                 }
                             }
@@ -78,8 +89,8 @@ public struct StageFlowMainView: View {
                             
                             // 3. Master Section
                             HStack(spacing: 12) {
-                                VerticalFader(title: "FOH MASTER", value: $audio.masterFOHVolume, peak: audio.fohPeak, tintColor: .blue, isMaster: true)
-                                VerticalFader(title: "IEM MASTER", value: $audio.masterIEMVolume, peak: audio.iemPeak, tintColor: .purple, isMaster: true)
+                                VerticalFader(title: "FOH MASTER", value: $audio.masterFOHVolume, peak: audio.fohPeak, isClipping: audio.fohClipping, tintColor: .blue, isMaster: true)
+                                VerticalFader(title: "IEM MASTER", value: $audio.masterIEMVolume, peak: audio.iemPeak, isClipping: audio.iemClipping, tintColor: .purple, isMaster: true)
                             }
                             .padding(10)
                             .frame(maxWidth: .infinity)
@@ -89,10 +100,12 @@ public struct StageFlowMainView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                     }
-                } else {
+                } else if appState.selectedTab == 1 {
                     PlaylistView(appState: appState) { track in
                         loadTrackIntoEngine(track)
                     }
+                } else {
+                    DiagnosticsView(audio: audio, midi: midi)
                 }
                 
                 Divider()
@@ -113,8 +126,8 @@ public struct StageFlowMainView: View {
         }
         .frame(minWidth: 960, minHeight: 640)
         .onAppear {
-            if appState.selectedTrack == nil, let first = appState.playlist.first {
-                appState.selectedTrack = first
+            if appState.selectedTrackID == nil, let first = appState.playlist.first {
+                appState.selectedTrackID = first.id
             }
             setupMIDIBindings()
         }
@@ -139,6 +152,42 @@ public struct StageFlowMainView: View {
             default:
                 break
             }
+        }
+    }
+    
+    private var onAirColor: Color {
+        if audio.isOnAir {
+            return .green
+        }
+        switch audio.engineLifecycleState {
+        case .failed:
+            return .red
+        case .degraded:
+            return .yellow
+        case .starting:
+            return .blue
+        case .stopped:
+            return .gray
+        case .ready, .running:
+            return .orange
+        }
+    }
+    
+    private var onAirText: String {
+        if audio.isOnAir {
+            return "ON AIR"
+        }
+        switch audio.engineLifecycleState {
+        case .failed:
+            return "ENGINE FAILED"
+        case .degraded:
+            return audio.isPlaying ? "ON AIR (DEGRADED)" : "DEGRADED"
+        case .starting:
+            return "STARTING"
+        case .stopped:
+            return "STOPPED"
+        case .ready, .running:
+            return "PAUSED"
         }
     }
 }

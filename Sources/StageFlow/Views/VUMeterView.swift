@@ -2,10 +2,12 @@ import SwiftUI
 
 public struct VUMeterView: View {
     public var level: Float // 0.0 ... 1.0
+    public var isClipping: Bool = false
     private let ledCount: Int = 14
     
-    public init(level: Float) {
+    public init(level: Float, isClipping: Bool = false) {
         self.level = level
+        self.isClipping = isClipping
     }
     
     public var body: some View {
@@ -15,10 +17,11 @@ public struct VUMeterView: View {
             VStack(spacing: 2.5) {
                 ForEach((0..<ledCount).reversed(), id: \.self) { idx in
                     let threshold = Float(idx) / Float(ledCount)
-                    let isActive = level >= threshold
+                    let isTopClip = (idx == ledCount - 1) && isClipping
+                    let isActive = isTopClip || (level >= threshold)
                     
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(isActive ? ledColor(threshold) : Color.white.opacity(0.06))
+                        .fill(isActive ? ledColor(threshold, isTopClip: isTopClip) : Color.white.opacity(0.06))
                         .frame(height: ledHeight)
                 }
             }
@@ -30,8 +33,8 @@ public struct VUMeterView: View {
         .cornerRadius(4)
     }
     
-    private func ledColor(_ threshold: Float) -> Color {
-        if threshold > 0.82 {
+    private func ledColor(_ threshold: Float, isTopClip: Bool = false) -> Color {
+        if isTopClip || threshold > 0.82 {
             return .red
         } else if threshold > 0.60 {
             return .yellow

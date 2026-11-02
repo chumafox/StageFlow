@@ -2,6 +2,22 @@ import Foundation
 import AVFoundation
 
 public class LyricsParser {
+    private static let timeRegex: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: #"^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]"#)
+        } catch {
+            fatalError("Failed to initialize timeRegex: \(error)")
+        }
+    }()
+    
+    private static let chordRegex: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(pattern: #"\[([^\]]+)\]"#)
+        } catch {
+            fatalError("Failed to initialize chordRegex: \(error)")
+        }
+    }()
+
     public static func extractLyrics(from fileURL: URL) -> [LyricLine] {
         let asset = AVURLAsset(url: fileURL)
         var rawText: String? = nil
@@ -17,14 +33,22 @@ public class LyricsParser {
             }
         }
         
-        // 2. Поиск внешнего синхронизированного .lrc или .txt файла
+        // 2. Поиск внешнего синхронизированного .lrc или .txt файла (E08.2: без скрытого try?)
         if rawText == nil {
             let lrcURL = fileURL.deletingPathExtension().appendingPathExtension("lrc")
             let txtURL = fileURL.deletingPathExtension().appendingPathExtension("txt")
-            if let content = try? String(contentsOf: lrcURL, encoding: .utf8) {
-                rawText = content
-            } else if let content = try? String(contentsOf: txtURL, encoding: .utf8) {
-                rawText = content
+            if FileManager.default.fileExists(atPath: lrcURL.path) {
+                do {
+                    rawText = try String(contentsOf: lrcURL, encoding: .utf8)
+                } catch {
+                    print("Notice: could not read LRC at \(lrcURL.lastPathComponent): \(error.localizedDescription)")
+                }
+            } else if FileManager.default.fileExists(atPath: txtURL.path) {
+                do {
+                    rawText = try String(contentsOf: txtURL, encoding: .utf8)
+                } catch {
+                    print("Notice: could not read TXT at \(txtURL.lastPathComponent): \(error.localizedDescription)")
+                }
             }
         }
         
@@ -39,8 +63,8 @@ public class LyricsParser {
         var lines: [LyricLine] = []
         let rawLines = text.components(separatedBy: .newlines)
         
-        let timeRegex = try? NSRegularExpression(pattern: #"^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]"#)
-        let chordRegex = try? NSRegularExpression(pattern: #"\[([^\]]+)\]"#)
+        let timeRegex = Self.timeRegex
+        let chordRegex = Self.chordRegex
         
         for rawLine in rawLines {
             let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
@@ -58,7 +82,7 @@ public class LyricsParser {
             var time: TimeInterval? = nil
             
             // Проверка временных меток вида [01:23.45]
-            if let match = timeRegex?.firstMatch(in: lineText, range: NSRange(lineText.startIndex..., in: lineText)) {
+            if let match = timeRegex.firstMatch(in: lineText, range: NSRange(lineText.startIndex..., in: lineText)) {
                 if let minRange = Range(match.range(at: 1), in: lineText),
                    let secRange = Range(match.range(at: 2), in: lineText) {
                     let mins = Double(lineText[minRange]) ?? 0
@@ -71,7 +95,7 @@ public class LyricsParser {
                     }
                     time = (mins * 60.0) + secs + millis
                 }
-                lineText = timeRegex?.stringByReplacingMatches(in: lineText, range: NSRange(lineText.startIndex..., in: lineText), withTemplate: "").trimmingCharacters(in: .whitespaces) ?? lineText
+                lineText = timeRegex.stringByReplacingMatches(in: lineText, range: NSRange(lineText.startIndex..., in: lineText), withTemplate: "").trimmingCharacters(in: .whitespaces)
             }
             
             // Парсинг аккордов [Am], [G/B], [Cmaj7]
@@ -79,15 +103,14 @@ public class LyricsParser {
             var cleanText = ""
             var lastIndex = lineText.startIndex
             
-            if let chordMatches = chordRegex?.matches(in: lineText, range: NSRange(lineText.startIndex..., in: lineText)) {
-                for m in chordMatches {
-                    if let chordRange = Range(m.range(at: 1), in: lineText),
-                       let fullRange = Range(m.range(at: 0), in: lineText) {
-                        cleanText += lineText[lastIndex..<fullRange.lowerBound]
-                        let chordName = String(lineText[chordRange])
-                        chords.append(ChordMarker(chord: chordName, characterIndex: cleanText.count))
-                        lastIndex = fullRange.upperBound
-                    }
+            let chordMatches = chordRegex.matches(in: lineText, range: NSRange(lineText.startIndex..., in: lineText))
+            for m in chordMatches {
+                if let chordRange = Range(m.range(at: 1), in: lineText),
+                   let fullRange = Range(m.range(at: 0), in: lineText) {
+                    cleanText += lineText[lastIndex..<fullRange.lowerBound]
+                    let chordName = String(lineText[chordRange])
+                    chords.append(ChordMarker(chord: chordName, characterIndex: cleanText.count))
+                    lastIndex = fullRange.upperBound
                 }
             }
             cleanText += lineText[lastIndex...]
