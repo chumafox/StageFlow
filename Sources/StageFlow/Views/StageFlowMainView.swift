@@ -3,7 +3,7 @@ import SwiftUI
 public struct StageFlowMainView: View {
     @StateObject private var audio = LiveAudioEngine()
     @StateObject private var midi = MIDIManager.shared
-    @StateObject private var appState = AppState()
+    @StateObject private var appState = AppState(autoLoad: true)
     
     public init() {}
     

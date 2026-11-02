@@ -62,3 +62,45 @@ public protocol MIDIMappingStoreProtocol: Sendable {
     func saveMapping(_ mapping: MIDIMapping)
     func allMappings() -> [MIDIMapping]
 }
+
+/// Протокол асинхронного импорта треков (E11.1 / E11.3)
+public protocol TrackImporterProtocol: Sendable {
+    func importTrack(from url: URL) async throws -> SongTrack
+    func importBatch(
+        urls: [URL],
+        maxConcurrency: Int,
+        progressHandler: (@Sendable (Double) -> Void)?
+    ) async -> (tracks: [SongTrack], errors: [(url: URL, error: StageFlowError)])
+}
+
+/// Снимок данных сета и плейлиста для персистентного хранения (E11.5 / E11.9)
+public struct SetlistData: Codable, Sendable, Equatable {
+    public var schemaVersion: Int
+    public var tracks: [SongTrack]
+    public var selectedTrackID: UUID?
+    public var prompterFontSize: Double
+    public var autoScrollEnabled: Bool
+    public var midiMappings: [MIDIMapping]
+    
+    public init(
+        schemaVersion: Int = 1,
+        tracks: [SongTrack] = [],
+        selectedTrackID: UUID? = nil,
+        prompterFontSize: Double = 28.0,
+        autoScrollEnabled: Bool = true,
+        midiMappings: [MIDIMapping] = []
+    ) {
+        self.schemaVersion = schemaVersion
+        self.tracks = tracks
+        self.selectedTrackID = selectedTrackID
+        self.prompterFontSize = prompterFontSize
+        self.autoScrollEnabled = autoScrollEnabled
+        self.midiMappings = midiMappings
+    }
+}
+
+/// Протокол атомарного хранилища плейлиста и настроек (E11.5 / E11.6)
+public protocol SetlistStoreProtocol: Sendable {
+    func save(setlist: SetlistData) throws
+    func load() -> SetlistData?
+}

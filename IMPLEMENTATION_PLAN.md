@@ -3,7 +3,7 @@
 **Назначение документа:** нормативный execution playbook для программиста.  
 **Основание:** `AUDIT.md`, версия исходного кода `d48ee50`.  
 **Целевая платформа:** macOS 13+, Apple Silicon.  
-**Текущий этап:** E11.  
+**Текущий этап:** E12.  
 **Текущий статус:** В работе.  
 **Последнее обновление плана:** 2026-11-02.  
 **Ответственный исполнитель:** Antigravity / jenya.  
@@ -117,8 +117,8 @@
 | E08 | Ошибки, lifecycle и отказоустойчивость | Завершён | 2026-11-02 | candidate | Documentation/Validation/E08/fault_injection.md | jenya |
 | E09 | MIDI decoding, mappings и hot-plug | Завершён | 2026-11-02 | candidate | Documentation/Validation/E09/midi_mappings.md | jenya |
 | E10 | Lyrics, ChordPro и prompter | Завершён | 2026-11-02 | candidate | Documentation/Validation/E10/lyrics_and_prompter.md | jenya |
-| E11 | Импорт, плейлист и persistence | В работе | — | — | — | jenya |
-| E12 | Измерение и оптимизация производительности | Не начат | — | — | — | — |
+| E11 | Импорт, плейлист и persistence | Завершён | 2026-11-02 | candidate | Documentation/Validation/E11/import_and_persistence.md | jenya |
+| E12 | Измерение и оптимизация производительности | В работе | — | — | — | jenya |
 | E13 | Packaging, безопасность и документация | Не начат | — | — | — | — |
 | E14 | Финальный regression и release decision | Не начат | — | — | — | — |
 
@@ -217,6 +217,12 @@
 | 2026-11-02 20:20 | E10.7..E10.9 | Динамическая активная строка (до следующего timestamp), верстка аккордов по сегментам | `SongTrack.swift`, `StagePrompterView.swift` | SF-08 закрыт, автоскролл оптимизирован | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | Antigravity |
 | 2026-11-02 20:25 | E10.10 | Обработка пустых строк, корректное поведение плейсхолдера, пакет регрессии E10 | `LyricsPrompterTests.swift` | 8 тестов PASS | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | Antigravity |
 | 2026-11-02 20:30 | Gate E10 | Пройден стоп-гейт E10: 78 тестов PASS (8 новых lyrics), 0 warnings, SF-08 полностью закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | jenya |
+| 2026-11-02 21:05 | E11.1..E11.2 | Выделен TrackImporter, реальный расчет длительности аудио, устранение hardcoded 180с | `TrackImporter.swift`, `PlaylistView.swift` | SF-11 закрыт | `Documentation/Validation/E11/import_and_persistence.md` | candidate | Antigravity |
+| 2026-11-02 21:10 | E11.3 | Пакетный асинхронный импорт с ограничением параллелизма (TaskGroup) и изоляцией ошибок | `TrackImporter.swift`, `PlaylistView.swift` | Отзывчивый batch import PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | Antigravity |
+| 2026-11-02 21:15 | E11.4..E11.6 | Атомарный SetlistStore с версионированием (v1), бэкап битого JSON, обновление по ID | `SetlistStore.swift`, `AppState.swift` | Атомарность и восстановление PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | Antigravity |
+| 2026-11-02 21:20 | E11.7..E11.9 | Обнаружение отсутствующих файлов (isAvailable), security bookmarks, relink | `SetlistStore.swift`, `PlaylistView.swift` | Сохранение маппингов и релинк PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | Antigravity |
+| 2026-11-02 21:25 | E11.10 | Пакет регрессионных тестов импорта и персистентности в SetlistPersistenceTests | `SetlistPersistenceTests.swift` | 8 тестов PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | Antigravity |
+| 2026-11-02 21:30 | Gate E11 | Пройден стоп-гейт E11: 86 тестов PASS (8 новых persistence), 0 warnings, SF-11 полностью закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | jenya |
 
 ### 3.3. Журнал блокеров
 
@@ -883,16 +889,16 @@
 
 ### Задачи
 
-- [ ] **E11.1 — Выделить TrackImporter.** Асинхронно загружать duration, metadata и lyrics. Возвращать результат или typed error для каждого файла.
-- [ ] **E11.2 — Убрать фиксированные 180 секунд.** В playlist попадает реальная duration; до готовности допускается явное loading state, но не вымышленные 03:00.
-- [ ] **E11.3 — Сделать batch import responsive.** Несколько файлов обрабатываются с прогрессом и понятными per-file errors. Не запускать неограниченный параллелизм на сотнях файлов.
-- [ ] **E11.4 — Обновлять треки по ID.** Playlist остаётся единственным источником; selected ID не ссылается на устаревшую копию.
-- [ ] **E11.5 — Реализовать SetlistStore.** Сохранять порядок, треки, выбранный ID, prompter settings и MIDI mappings. Добавить schema version с первой версии.
-- [ ] **E11.6 — Сделать сохранение атомарным.** Не оставлять частично записанный store при завершении/ошибке. Повреждённый store не должен приводить к crash или молчаливой потере без резервной копии/диагностики.
-- [ ] **E11.7 — Обработать moved/missing files.** После relaunch показывать unavailable state и позволять повторно выбрать/связать файл; не удалять запись молча.
-- [ ] **E11.8 — Добавить security-scoped bookmarks при sandbox.** Решение зависит от packaging ADR E13, но архитектура store должна допускать bookmarks. Если sandbox включается раньше, доступ должен быть проверен уже здесь.
-- [ ] **E11.9 — Сохранять mappings и настройки.** Проверить, что learning E09 и font/Auto-Scroll восстанавливаются.
-- [ ] **E11.10 — Добавить migration/corruption tests.** Schema v1, неизвестные поля, повреждённые данные, пустой store и unavailable file.
+- [x] **E11.1 — Выделить TrackImporter.** Асинхронно загружать duration, metadata и lyrics. Возвращать результат или typed error для каждого файла.
+- [x] **E11.2 — Убрать фиксированные 180 секунд.** В playlist попадает реальная duration; до готовности допускается явное loading state, но не вымышленные 03:00.
+- [x] **E11.3 — Сделать batch import responsive.** Несколько файлов обрабатываются с прогрессом и понятными per-file errors. Не запускать неограниченный параллелизм на сотнях файлов.
+- [x] **E11.4 — Обновлять треки по ID.** Playlist остаётся единственным источником; selected ID не ссылается на устаревшую копию.
+- [x] **E11.5 — Реализовать SetlistStore.** Сохранять порядок, треки, выбранный ID, prompter settings и MIDI mappings. Добавить schema version с первой версии.
+- [x] **E11.6 — Сделать сохранение атомарным.** Не оставлять частично записанный store при завершении/ошибке. Повреждённый store не должен приводить к crash или молчаливой потере без резервной копии/диагностики.
+- [x] **E11.7 — Обработать moved/missing files.** После relaunch показывать unavailable state и позволять повторно выбрать/связать файл; не удалять запись молча.
+- [x] **E11.8 — Добавить security-scoped bookmarks при sandbox.** Решение зависит от packaging ADR E13, но архитектура store должна допускать bookmarks. Если sandbox включается раньше, доступ должен быть проверен уже здесь.
+- [x] **E11.9 — Сохранять mappings и настройки.** Проверить, что learning E09 и font/Auto-Scroll восстанавливаются.
+- [x] **E11.10 — Добавить migration/corruption tests.** Schema v1, неизвестные поля, повреждённые данные, пустой store и unavailable file.
 
 ### Валидация E11
 
@@ -907,12 +913,12 @@
 
 ### Стоп-гейт E11
 
-- [ ] Фиксированная duration удалена из пользовательского пути.
-- [ ] Batch import асинхронен и ограничен по параллелизму.
-- [ ] Relaunch, missing file, relink, corruption и migration tests PASS.
-- [ ] Настройки и MIDI mappings сохраняются.
-- [ ] Большие текстовые файлы ограничены безопасно.
-- [ ] Общий Definition of Done выполнен.
+- [x] Фиксированная duration удалена из пользовательского пути.
+- [x] Batch import асинхронен и ограничен по параллелизму.
+- [x] Relaunch, missing file, relink, corruption и migration tests PASS.
+- [x] Настройки и MIDI mappings сохраняются.
+- [x] Большие текстовые файлы ограничены безопасно.
+- [x] Общий Definition of Done выполнен.
 
 ---
 

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ChordMarker: Identifiable, Sendable, Equatable {
+public struct ChordMarker: Identifiable, Sendable, Equatable, Hashable, Codable {
     public let id: UUID
     public let chord: String
     public let characterIndex: Int
@@ -12,7 +12,7 @@ public struct ChordMarker: Identifiable, Sendable, Equatable {
     }
 }
 
-public struct LyricSegment: Identifiable, Sendable, Equatable {
+public struct LyricSegment: Identifiable, Sendable, Equatable, Hashable, Codable {
     public let id: UUID
     public let chord: String?
     public let text: String
@@ -24,7 +24,7 @@ public struct LyricSegment: Identifiable, Sendable, Equatable {
     }
 }
 
-public struct LyricLine: Identifiable, Sendable, Equatable {
+public struct LyricLine: Identifiable, Sendable, Equatable, Hashable, Codable {
     public let id: UUID
     public let timestamp: TimeInterval? // Seconds from start (nil if not synced)
     public let rawText: String
@@ -108,20 +108,34 @@ public struct LyricLine: Identifiable, Sendable, Equatable {
     }
 }
 
-public struct SongTrack: Identifiable, Hashable {
-    public let id = UUID()
+public struct SongTrack: Identifiable, Hashable, Equatable, Sendable, Codable {
+    public let id: UUID
     public var title: String
     public var artist: String
     public var fileURL: URL?
     public var duration: TimeInterval
     public var lyrics: [LyricLine]
+    public var bookmarkData: Data?
+    public var isAvailable: Bool
     
-    public init(title: String, artist: String = "Live", fileURL: URL? = nil, duration: TimeInterval = 0, lyrics: [LyricLine] = []) {
+    public init(
+        id: UUID = UUID(),
+        title: String,
+        artist: String = "Live",
+        fileURL: URL? = nil,
+        duration: TimeInterval = 0,
+        lyrics: [LyricLine] = [],
+        bookmarkData: Data? = nil,
+        isAvailable: Bool = true
+    ) {
+        self.id = id
         self.title = title
         self.artist = artist
         self.fileURL = fileURL
         self.duration = duration
         self.lyrics = lyrics
+        self.bookmarkData = bookmarkData
+        self.isAvailable = isAvailable
     }
     
     public static func == (lhs: SongTrack, rhs: SongTrack) -> Bool {
