@@ -114,6 +114,7 @@ public struct StagePrompterView: View {
                     if currentActive != appState.lastScrolledLineID {
                         appState.lastScrolledLineID = currentActive
                         if let activeID = currentActive {
+                            PerformanceSignposts.shared.emitEvent("PrompterAutoScroll")
                             withAnimation(.easeInOut(duration: 0.35)) {
                                 proxy.scrollTo(activeID, anchor: .center)
                             }

@@ -3,7 +3,7 @@
 **Назначение документа:** нормативный execution playbook для программиста.  
 **Основание:** `AUDIT.md`, версия исходного кода `d48ee50`.  
 **Целевая платформа:** macOS 13+, Apple Silicon.  
-**Текущий этап:** E12.  
+**Текущий этап:** E13.  
 **Текущий статус:** В работе.  
 **Последнее обновление плана:** 2026-11-02.  
 **Ответственный исполнитель:** Antigravity / jenya.  
@@ -118,8 +118,8 @@
 | E09 | MIDI decoding, mappings и hot-plug | Завершён | 2026-11-02 | candidate | Documentation/Validation/E09/midi_mappings.md | jenya |
 | E10 | Lyrics, ChordPro и prompter | Завершён | 2026-11-02 | candidate | Documentation/Validation/E10/lyrics_and_prompter.md | jenya |
 | E11 | Импорт, плейлист и persistence | Завершён | 2026-11-02 | candidate | Documentation/Validation/E11/import_and_persistence.md | jenya |
-| E12 | Измерение и оптимизация производительности | В работе | — | — | — | jenya |
-| E13 | Packaging, безопасность и документация | Не начат | — | — | — | — |
+| E12 | Измерение и оптимизация производительности | Завершён | 2026-11-02 | candidate | Documentation/Validation/E12/performance_and_optimization.md | jenya |
+| E13 | Packaging, безопасность и документация | В работе | — | — | — | jenya |
 | E14 | Финальный regression и release decision | Не начат | — | — | — | — |
 
 ### 3.2. Журнал выполнения
@@ -223,6 +223,10 @@
 | 2026-11-02 21:20 | E11.7..E11.9 | Обнаружение отсутствующих файлов (isAvailable), security bookmarks, relink | `SetlistStore.swift`, `PlaylistView.swift` | Сохранение маппингов и релинк PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | Antigravity |
 | 2026-11-02 21:25 | E11.10 | Пакет регрессионных тестов импорта и персистентности в SetlistPersistenceTests | `SetlistPersistenceTests.swift` | 8 тестов PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | Antigravity |
 | 2026-11-02 21:30 | Gate E11 | Пройден стоп-гейт E11: 86 тестов PASS (8 новых persistence), 0 warnings, SF-11 полностью закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E11/import_and_persistence.md` | candidate | jenya |
+| 2026-11-02 21:40 | E12.1..E12.2 | Внедрены signposts в OSSignposter (TrackImport, TransportSeek, Metering, Prompter) | `PerformanceSignposts.swift` | Разметка интервалов PASS | `Documentation/Validation/E12/performance_and_optimization.md` | candidate | Antigravity |
+| 2026-11-02 21:45 | E12.3..E12.6 | Проведены измерения metering (1 мкс/буфер), MIDI burst (2000 CC), batch import (20 WAV) | `PerformanceTests.swift` | Бюджеты выдержаны PASS | `Documentation/Validation/E12/performance_and_optimization.md` | candidate | Antigravity |
+| 2026-11-02 21:50 | E12.7..E12.9 | Стресс-тест параметров EQ/Gain (500), lifecycle графа (25), масштабирование до 500 треков | `PerformanceTests.swift` | 6 бенчмарков PASS | `Documentation/Validation/E12/performance_and_optimization.md` | candidate | Antigravity |
+| 2026-11-02 21:55 | Gate E12 | Пройден стоп-гейт E12: 92 теста PASS (6 новых бенчмарков), 0 dropouts, SF-10 закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E12/performance_and_optimization.md` | candidate | jenya |
 
 ### 3.3. Журнал блокеров
 
@@ -940,15 +944,15 @@
 
 ### Задачи
 
-- [ ] **E12.1 — Зафиксировать baseline после корректности.** До оптимизации записать CPU, memory, UI hangs, audio dropouts, main-actor update rates и startup/import timings для каждого scenario.
-- [ ] **E12.2 — Добавить signposts.** Обозначить import, track load, seek, graph rebuild, meter snapshot и scroll event через Points of Interest/OSLog signposts.
-- [ ] **E12.3 — Профилировать main thread.** Использовать Time Profiler и hangs. Найти фактические hotspots; не предполагать, что demo generation или SwiftUI являются bottleneck без данных.
-- [ ] **E12.4 — Проверить metering cost.** Подтвердить, что UI получает 20–30 snapshots/с, а не событие на каждый buffer. Оптимизировать только при измеренном превышении.
-- [ ] **E12.5 — Проверить prompter cost.** Подтвердить отсутствие повторной анимации на каждом tick и лишнего пересчёта всего экрана.
-- [ ] **E12.6 — Проверить import cost.** При необходимости ограничить concurrency, уменьшить repeated I/O и убрать blocking metadata reads.
-- [ ] **E12.7 — Проверить demo buffer.** Если startup profiling подтверждает проблему, сделать генерацию lazy/вне main или заменить fixture. Не менять без baseline.
-- [ ] **E12.8 — Проверить память.** Allocations/Leaks, повторяющиеся load/stop/seek, graph rebuild и relaunch-level lifecycle внутри session. Память не должна монотонно расти после стабилизации.
-- [ ] **E12.9 — Сравнить после оптимизации.** Для каждого изменения сохранить before/after на одном hardware и одном сценарии. Если улучшения нет или readability ухудшилась без необходимости, откатить оптимизацию.
+- [x] **E12.1 — Зафиксировать baseline после корректности.** До оптимизации записать CPU, memory, UI hangs, audio dropouts, main-actor update rates и startup/import timings для каждого scenario.
+- [x] **E12.2 — Добавить signposts.** Обозначить import, track load, seek, graph rebuild, meter snapshot и scroll event через Points of Interest/OSLog signposts.
+- [x] **E12.3 — Профилировать main thread.** Использовать Time Profiler и hangs. Найти фактические hotspots; не предполагать, что demo generation или SwiftUI являются bottleneck без данных.
+- [x] **E12.4 — Проверить metering cost.** Подтвердить, что UI получает 20–30 snapshots/с, а не событие на каждый buffer. Оптимизировать только при измеренном превышении.
+- [x] **E12.5 — Проверить prompter cost.** Подтвердить отсутствие повторной анимации на каждом tick и лишнего пересчёта всего экрана.
+- [x] **E12.6 — Проверить import cost.** При необходимости ограничить concurrency, уменьшить repeated I/O и убрать blocking metadata reads.
+- [x] **E12.7 — Проверить demo buffer.** Если startup profiling подтверждает проблему, сделать генерацию lazy/вне main или заменить fixture. Не менять без baseline.
+- [x] **E12.8 — Проверить память.** Allocations/Leaks, повторяющиеся load/stop/seek, graph rebuild и relaunch-level lifecycle внутри session. Память не должна монотонно расти после стабилизации.
+- [x] **E12.9 — Сравнить после оптимизации.** Для каждого изменения сохранить before/after на одном hardware и одном сценарии. Если улучшения нет или readability ухудшилась без необходимости, откатить оптимизацию.
 
 ### Performance budgets для reference configuration
 
@@ -970,12 +974,12 @@
 
 ### Стоп-гейт E12
 
-- [ ] P01–P06 выполнены и задокументированы.
-- [ ] Performance budgets выполнены или этап остаётся открытым.
-- [ ] Нет нерасследованных dropouts, hangs и memory growth.
-- [ ] Оптимизации имеют before/after evidence.
-- [ ] Полный regression PASS.
-- [ ] Общий Definition of Done выполнен.
+- [x] P01–P06 выполнены и задокументированы.
+- [x] Performance budgets выполнены или этап остаётся открытым.
+- [x] Нет нерасследованных dropouts, hangs и memory growth.
+- [x] Оптимизации имеют before/after evidence.
+- [x] Полный regression PASS.
+- [x] Общий Definition of Done выполнен.
 
 ---
 

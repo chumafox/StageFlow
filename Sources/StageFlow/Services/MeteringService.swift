@@ -270,6 +270,7 @@ public final class MeteringCoordinator: ObservableObject {
     
     /// Сбор снимков измерений с частотой 25 Гц (каждые 40 мс)
     public func pollSnapshots() {
+        PerformanceSignposts.shared.emitEvent("MeteringSnapshotDispatch")
         self.backingMeter = backingProcessor.updateSnapshot()
         self.mic1Meter = mic1Processor.updateSnapshot()
         self.mic2Meter = mic2Processor.updateSnapshot()

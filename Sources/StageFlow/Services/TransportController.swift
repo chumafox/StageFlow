@@ -109,6 +109,9 @@ public final class TransportController: ObservableObject, TransportControllerPro
     // MARK: - Загрузка источника (E07.2 / E07.8)
     
     public func loadAudioFile(url: URL) {
+        let signpost = PerformanceSignposts.shared.beginInterval("AudioFileLoad")
+        defer { PerformanceSignposts.shared.endInterval("AudioFileLoad", state: signpost) }
+        
         currentOperationID += 1
         let opID = currentOperationID
         
@@ -291,6 +294,7 @@ public final class TransportController: ObservableObject, TransportControllerPro
     // MARK: - Настоящий Seek (E07.3 / E07.4)
     
     public func seek(to targetTime: TimeInterval) {
+        PerformanceSignposts.shared.emitEvent("TransportSeek")
         let clampedTime = max(0.0, min(targetTime, trackDuration))
         
         if let file = currentAudioFile {

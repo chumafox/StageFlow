@@ -13,6 +13,9 @@ public final class TrackImporter: TrackImporterProtocol, Sendable {
     
     /// Асинхронно импортирует аудиофайл, извлекая реальную длительность, метаданные и тексты (E11.1 / E11.2).
     public func importTrack(from url: URL) async throws -> SongTrack {
+        let signpost = PerformanceSignposts.shared.beginInterval("TrackImport")
+        defer { PerformanceSignposts.shared.endInterval("TrackImport", state: signpost) }
+        
         // 1. Проверка существования файла на диске (E11.7 / SF-11)
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw StageFlowError.missingFile(url.path)
