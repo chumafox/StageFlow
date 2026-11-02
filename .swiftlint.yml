@@ -1,0 +1,18 @@
+disabled_rules:
+  - line_length
+  - todo
+  - file_length
+
+opt_in_rules:
+  - empty_count
+  - force_unwrapping
+  - fatal_error_message
+
+included:
+  - Sources
+  - Tests
+
+excluded:
+  - .build
+  - Tests/Fixtures
+  - Documentation
