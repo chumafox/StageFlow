@@ -3,7 +3,7 @@
 **Назначение документа:** нормативный execution playbook для программиста.  
 **Основание:** `AUDIT.md`, версия исходного кода `d48ee50`.  
 **Целевая платформа:** macOS 13+, Apple Silicon.  
-**Текущий этап:** E09.  
+**Текущий этап:** E10.  
 **Текущий статус:** В работе.  
 **Последнее обновление плана:** 2026-11-02.  
 **Ответственный исполнитель:** Antigravity / jenya.  
@@ -115,8 +115,8 @@
 | E06 | Достоверный metering | Завершён | 2026-11-02 | candidate | Documentation/Validation/E06/metering.md | jenya |
 | E07 | Надёжный транспорт | Завершён | 2026-11-02 | candidate | Documentation/Validation/E07/transport.md | jenya |
 | E08 | Ошибки, lifecycle и отказоустойчивость | Завершён | 2026-11-02 | candidate | Documentation/Validation/E08/fault_injection.md | jenya |
-| E09 | MIDI decoding, mappings и hot-plug | В работе | — | — | — | jenya |
-| E10 | Lyrics, ChordPro и prompter | Не начат | — | — | — | — |
+| E09 | MIDI decoding, mappings и hot-plug | Завершён | 2026-11-02 | candidate | Documentation/Validation/E09/midi_mappings.md | jenya |
+| E10 | Lyrics, ChordPro и prompter | В работе | — | — | — | jenya |
 | E11 | Импорт, плейлист и persistence | Не начат | — | — | — | — |
 | E12 | Измерение и оптимизация производительности | Не начат | — | — | — | — |
 | E13 | Packaging, безопасность и документация | Не начат | — | — | — | — |
@@ -207,6 +207,11 @@
 | 2026-11-02 18:38 | E08.7 | Создана панель диагностики DiagnosticsView и модель отчёта DiagnosticsReport в UI (Tab 2) | `DiagnosticsView.swift`, `StageFlowMainView.swift` | Прозрачность состояния | `Documentation/Validation/E08/fault_injection.md` | candidate | Antigravity |
 | 2026-11-02 18:41 | E08.8 | Разработан пакет fault-injection тестов: битые/усечённые/отсутствующие файлы, сбои engine, 20 циклов | `FaultInjectionTests.swift` | 9 тестов PASS | `Documentation/Validation/E08/fault_injection.md` | candidate | Antigravity |
 | 2026-11-02 18:43 | Gate E08 | Пройден стоп-гейт E08: 55 тестов PASS, 0 warnings, coverage AudioGraph 97.7%, LiveAudioEngine 86.3% | `swift test`, `swift build -Xswiftc -strict-concurrency=complete` | PASS | `Documentation/Validation/E08/fault_injection.md` | candidate | jenya |
+| 2026-11-02 19:10 | E09.1..E09.2 | Выделен чистый MIDIDecoder для UMP и legacy, обход всех слов и пакетов, corpus тестов | `MIDIManager.swift`, `MIDITests.swift` | 7 тестов decoder PASS | `Documentation/Validation/E09/midi_mappings.md` | candidate | Antigravity |
+| 2026-11-02 19:15 | E09.3..E09.7 | Реализована модель маппингов, MIDIMappingStore с сохранением, приоритет user > defaults | `MIDIMappingStore.swift`, `MIDIManager.swift` | Персистентность и приоритет PASS | `Documentation/Validation/E09/midi_mappings.md` | candidate | Antigravity |
+| 2026-11-02 19:20 | E09.4..E09.5 | Семантика нот (неназначенные игнорируются) и порог сустейна >= 64 на rising edge | `MIDIManager.swift`, `MIDITests.swift` | SF-06 закрыт | `Documentation/Validation/E09/midi_mappings.md` | candidate | Antigravity |
+| 2026-11-02 19:25 | E09.8..E09.11 | Подключены next/previous действия, CoreMIDI hot-plug, 30 Гц UI coalescing | `MIDIManager.swift`, `AppState.swift`, `StageFlowMainView.swift` | Hot-plug и burst 1000 CC PASS | `Documentation/Validation/E09/midi_mappings.md` | candidate | Antigravity |
+| 2026-11-02 19:30 | Gate E09 | Пройден стоп-гейт E09: 70 тестов PASS (15 новых MIDI), 0 warnings, SF-06 полностью закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E09/midi_mappings.md` | candidate | jenya |
 
 ### 3.3. Журнал блокеров
 
@@ -789,17 +794,17 @@
 
 ### Задачи
 
-- [ ] **E09.1 — Выделить чистый MIDIDecoder.** Обрабатывать protocol, message type, group, channel, data bytes и все UMP words во всех packets. Не читать только `words.0`.
-- [ ] **E09.2 — Создать decoder corpus.** Включить CC, Note On, Note On velocity 0 как off, Note Off, разные каналы, несколько сообщений в packet, malformed/unknown messages.
-- [ ] **E09.3 — Реализовать mappings.** Ключ mapping должен учитывать message type, channel и CC/note. Внутренний channel 0–15 и UI 1–16 должны быть явно согласованы.
-- [ ] **E09.4 — Исправить Note/pedal semantics.** Только назначенная нота вызывает действие. Velocity 0 не вызывает Play/Pause. Одно физическое нажатие создаёт одно действие.
-- [ ] **E09.5 — Исправить sustain threshold.** Использовать стандартную границу value ≥ 64 и срабатывание на переходе через threshold, а не повторно на каждом сообщении того же состояния.
-- [ ] **E09.6 — Завершить learning.** При learning сохранить фактический mapping через `MIDIMappingStore` между запусками, показать подтверждение и применять его к последующим событиям, а не только один раз к текущему value. Этот store создаётся и проверяется уже в E09; в E11 он интегрируется с общим сохранением состояния без потери mappings.
-- [ ] **E09.7 — Определить precedence.** Пользовательский mapping имеет приоритет над defaults CC 7, CC 1 и CC 64. Конфликт должен быть видим и разрешим.
-- [ ] **E09.8 — Подключить next/previous actions.** Если действие доступно в domain/UI, связать его с Transport/Setlist командами. Не оставлять неиспользуемый callback как имитацию поддержки.
-- [ ] **E09.9 — Реализовать hot-plug.** В notification block повторно перечислять источники, подключать новые, удалять исчезнувшие, обновлять имя/список устройств.
-- [ ] **E09.10 — Проверять все OSStatus.** Ошибка client/port/source операции должна сохраняться и отображаться в diagnostics.
-- [ ] **E09.11 — Ограничить UI queue.** CC bursts должны coalesce до последнего значения для UI, не создавая неограниченную main queue. Дискретные pedal events нельзя небрежно coalesce.
+- [x] **E09.1 — Выделить чистый MIDIDecoder.** Обрабатывать protocol, message type, group, channel, data bytes и все UMP words во всех packets. Не читать только `words.0`.
+- [x] **E09.2 — Создать decoder corpus.** Включить CC, Note On, Note On velocity 0 как off, Note Off, разные каналы, несколько сообщений в packet, malformed/unknown messages.
+- [x] **E09.3 — Реализовать mappings.** Ключ mapping должен учитывать message type, channel и CC/note. Внутренний channel 0–15 и UI 1–16 должны быть явно согласованы.
+- [x] **E09.4 — Исправить Note/pedal semantics.** Только назначенная нота вызывает действие. Velocity 0 не вызывает Play/Pause. Одно физическое нажатие создаёт одно действие.
+- [x] **E09.5 — Исправить sustain threshold.** Использовать стандартную границу value ≥ 64 и срабатывание на переходе через threshold, а не повторно на каждом сообщении того же состояния.
+- [x] **E09.6 — Завершить learning.** При learning сохранить фактический mapping через `MIDIMappingStore` между запусками, показать подтверждение и применять его к последующим событиям, а не только один раз к текущему value. Этот store создаётся и проверяется уже в E09; в E11 он интегрируется с общим сохранением состояния без потери mappings.
+- [x] **E09.7 — Определить precedence.** Пользовательский mapping имеет приоритет над defaults CC 7, CC 1 и CC 64. Конфликт должен быть видим и разрешим.
+- [x] **E09.8 — Подключить next/previous actions.** Если действие доступно в domain/UI, связать его с Transport/Setlist командами. Не оставлять неиспользуемый callback как имитацию поддержки.
+- [x] **E09.9 — Реализовать hot-plug.** В notification block повторно перечислять источники, подключать новые, удалять исчезнувшие, обновлять имя/список устройств.
+- [x] **E09.10 — Проверять все OSStatus.** Ошибка client/port/source операции должна сохраняться и отображаться в diagnostics.
+- [x] **E09.11 — Ограничить UI queue.** CC bursts должны coalesce до последнего значения для UI, не создавая неограниченную main queue. Дискретные pedal events нельзя небрежно coalesce.
 
 ### Валидация E09
 
@@ -814,12 +819,12 @@
 
 ### Стоп-гейт E09
 
-- [ ] Обрабатываются все words/packets, а не только первое слово.
-- [ ] Learning создаёт устойчивый mapping.
-- [ ] Неназначенные notes не вызывают действия.
-- [ ] Hot-plug, defaults, precedence, bursts и hardware controller tests PASS.
-- [ ] Нет новых concurrency warnings.
-- [ ] Общий Definition of Done выполнен.
+- [x] Обрабатываются все words/packets, а не только первое слово.
+- [x] Learning создаёт устойчивый mapping.
+- [x] Неназначенные notes не вызывают действия.
+- [x] Hot-plug, defaults, precedence, bursts и hardware controller tests PASS.
+- [x] Нет новых concurrency warnings.
+- [x] Общий Definition of Done выполнен.
 
 ---
 

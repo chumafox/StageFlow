@@ -34,4 +34,20 @@ public class AppState: ObservableObject {
     public func selectTrack(_ track: SongTrack) {
         self.selectedTrackID = track.id
     }
+    
+    /// Выбирает следующий трек в плейлисте (E09.8).
+    public func selectNextTrack() {
+        guard let currentID = selectedTrackID,
+              let currentIndex = playlist.firstIndex(where: { $0.id == currentID }),
+              currentIndex + 1 < playlist.count else { return }
+        selectedTrackID = playlist[currentIndex + 1].id
+    }
+    
+    /// Выбирает предыдущий трек в плейлисте (E09.8).
+    public func selectPreviousTrack() {
+        guard let currentID = selectedTrackID,
+              let currentIndex = playlist.firstIndex(where: { $0.id == currentID }),
+              currentIndex > 0 else { return }
+        selectedTrackID = playlist[currentIndex - 1].id
+    }
 }

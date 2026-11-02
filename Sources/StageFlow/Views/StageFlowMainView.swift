@@ -143,12 +143,36 @@ public struct StageFlowMainView: View {
         midi.onPlayPauseTrigger = {
             audio.togglePlayPause()
         }
+        midi.onStopTrigger = {
+            audio.stop()
+        }
+        midi.onNextTrackTrigger = {
+            appState.selectNextTrack()
+            if let track = appState.selectedTrack {
+                loadTrackIntoEngine(track)
+            }
+        }
+        midi.onPreviousTrackTrigger = {
+            appState.selectPreviousTrack()
+            if let track = appState.selectedTrack {
+                loadTrackIntoEngine(track)
+            }
+        }
         midi.onVolumeChange = { target, value in
             switch target {
             case "masterFOH":
                 audio.masterFOHVolume = value
+            case "masterIEM":
+                audio.masterIEMVolume = value
+            case "backing":
+                audio.trackFOHVolume = value
+            case "mic1":
+                audio.mic1.fohVolume = value
+            case "mic2":
+                audio.mic2.fohVolume = value
             case "reverb":
                 audio.mic1.reverbSend = value
+                audio.mic2.reverbSend = value
             default:
                 break
             }

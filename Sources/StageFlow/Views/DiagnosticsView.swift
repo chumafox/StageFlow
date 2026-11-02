@@ -141,13 +141,44 @@ public struct DiagnosticsView: View {
                                 .foregroundColor(midi.connectedDeviceName.contains("No") ? .gray : .cyan)
                         }
                         
+                        HStack {
+                            Text("Active Mappings:")
+                                .font(.system(size: 11, weight: .bold))
+                            Spacer()
+                            Text("\(midi.mappingStore.userMappings.count) custom + defaults")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if midi.isLearning, let target = midi.learningTarget {
+                            HStack {
+                                Text("Learning:")
+                                    .font(.system(size: 11, weight: .bold))
+                                Spacer()
+                                Text("Waiting for \(target.displayName)...")
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        
                         if let lastCC = midi.lastReceivedCC {
                             HStack {
                                 Text("Last Event:")
                                     .font(.system(size: 11, weight: .bold))
                                 Spacer()
-                                Text("Ch \(lastCC.channel) | CC #\(lastCC.cc) = \(lastCC.value)")
+                                Text("Ch \(lastCC.channel + 1) | CC #\(lastCC.cc) = \(lastCC.value)")
                                     .font(.system(size: 11, design: .monospaced))
+                            }
+                        }
+                        
+                        if let lastLearned = midi.lastLearnedMapping {
+                            HStack {
+                                Text("Learned Mapping:")
+                                    .font(.system(size: 11, weight: .bold))
+                                Spacer()
+                                Text("\(lastLearned.trigger.description) -> \(lastLearned.target.displayName)")
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(.green)
                             }
                         }
                     }
