@@ -1,0 +1,34 @@
+name: StageFlow CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (macOS Apple Silicon)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show developer environment
+        run: |
+          sw_vers
+          swift --version
+          xcode-select -p
+
+      - name: Debug build
+        run: swift build -v
+
+      - name: Strict concurrency check
+        run: swift build -Xswiftc -strict-concurrency=complete
+
+      - name: Run tests with code coverage
+        run: swift test -v --enable-code-coverage
+
+      - name: Release build
+        run: swift build -c release -v
