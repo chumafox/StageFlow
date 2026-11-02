@@ -13,6 +13,10 @@ public struct StagePrompterView: View {
         self.appState = appState
     }
     
+    private var activeLineID: UUID? {
+        LyricLine.activeLineID(in: lyrics, at: currentTime)
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             // Prompter Header (Zoom controls, status)
@@ -59,23 +63,36 @@ public struct StagePrompterView: View {
                             .frame(maxWidth: .infinity, minHeight: 300)
                         } else {
                             ForEach(lyrics) { line in
-                                let isCurrent = isLineActive(line)
+                                let isCurrent = (line.id == activeLineID)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    // Chords row (Stage Traxx style gold chords above syllables)
-                                    if !line.chords.isEmpty {
-                                        Text(line.chords.map { $0.chord }.joined(separator: "    "))
-                                            .font(.system(size: appState.prompterFontSize * 0.75, weight: .bold, design: .monospaced))
-                                            .foregroundColor(.orange)
-                                    }
-                                    
-                                    // Plain text row
-                                    if !line.plainText.isEmpty {
-                                        Text(line.plainText)
-                                            .font(.system(size: appState.prompterFontSize, weight: isCurrent ? .heavy : .medium))
-                                            .foregroundColor(isCurrent ? .white : .gray.opacity(0.55))
-                                    } else {
+                                    if line.plainText.isEmpty && line.chords.isEmpty {
                                         Spacer().frame(height: 16)
+                                    } else if line.chords.isEmpty {
+                                        // Обычная текстовая строка без аккордов
+                                        Text(line.plainText)
+                                            .font(.system(size: appState.prompterFontSize, weight: isCurrent ? .heavy : .medium, design: .monospaced))
+                                            .foregroundColor(isCurrent ? .white : .gray.opacity(0.65))
+                                    } else {
+                                        // Точное вертикальное позиционирование аккордов над слогами (E10.8)
+                                        HStack(alignment: .bottom, spacing: 0) {
+                                            ForEach(line.segments) { seg in
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    if let chord = seg.chord, !chord.isEmpty {
+                                                        Text(chord)
+                                                            .font(.system(size: appState.prompterFontSize * 0.72, weight: .bold, design: .monospaced))
+                                                            .foregroundColor(.orange)
+                                                    } else {
+                                                        Text(" ")
+                                                            .font(.system(size: appState.prompterFontSize * 0.72, weight: .bold, design: .monospaced))
+                                                    }
+                                                    
+                                                    Text(seg.text)
+                                                        .font(.system(size: appState.prompterFontSize, weight: isCurrent ? .heavy : .medium, design: .monospaced))
+                                                        .foregroundColor(isCurrent ? .white : .gray.opacity(0.65))
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 .id(line.id)
@@ -89,30 +106,21 @@ public struct StagePrompterView: View {
                     }
                     .padding(.vertical, 80)
                 }
+                // E10.9: Скроллить строго при смене activeLineID, исключая лишние анимации на каждом тике
                 .onChange(of: currentTime) { newTime in
                     guard appState.autoScrollEnabled, !lyrics.isEmpty else { return }
-                    // 1. По временным меткам
-                    if let activeLine = lyrics.last(where: { ($0.timestamp ?? -1) >= 0 && ($0.timestamp ?? 0) <= newTime }) {
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            proxy.scrollTo(activeLine.id, anchor: .center)
-                        }
-                    }
-                    // 2. Линейный скролл по общей длительности если нет таймкодов
-                    else if duration > 0 {
-                        let ratio = newTime / duration
-                        let targetIndex = min(lyrics.count - 1, Int(Double(lyrics.count) * ratio))
-                        let line = lyrics[targetIndex]
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            proxy.scrollTo(line.id, anchor: .center)
+                    
+                    let currentActive = LyricLine.activeLineID(in: lyrics, at: newTime)
+                    if currentActive != appState.lastScrolledLineID {
+                        appState.lastScrolledLineID = currentActive
+                        if let activeID = currentActive {
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                proxy.scrollTo(activeID, anchor: .center)
+                            }
                         }
                     }
                 }
             }
         }
-    }
-    
-    private func isLineActive(_ line: LyricLine) -> Bool {
-        guard let time = line.timestamp else { return false }
-        return currentTime >= time && currentTime < (time + 3.8)
     }
 }

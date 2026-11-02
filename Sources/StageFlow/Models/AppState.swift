@@ -17,6 +17,7 @@ public class AppState: ObservableObject {
     // Prompter settings
     @Published public var prompterFontSize: CGFloat = 28.0
     @Published public var autoScrollEnabled: Bool = true
+    @Published public var lastScrolledLineID: UUID? = nil
     
     public var selectedTrack: SongTrack? {
         guard let id = selectedTrackID else { return nil }

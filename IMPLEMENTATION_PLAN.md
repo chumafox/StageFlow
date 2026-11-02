@@ -3,7 +3,7 @@
 **Назначение документа:** нормативный execution playbook для программиста.  
 **Основание:** `AUDIT.md`, версия исходного кода `d48ee50`.  
 **Целевая платформа:** macOS 13+, Apple Silicon.  
-**Текущий этап:** E10.  
+**Текущий этап:** E11.  
 **Текущий статус:** В работе.  
 **Последнее обновление плана:** 2026-11-02.  
 **Ответственный исполнитель:** Antigravity / jenya.  
@@ -116,8 +116,8 @@
 | E07 | Надёжный транспорт | Завершён | 2026-11-02 | candidate | Documentation/Validation/E07/transport.md | jenya |
 | E08 | Ошибки, lifecycle и отказоустойчивость | Завершён | 2026-11-02 | candidate | Documentation/Validation/E08/fault_injection.md | jenya |
 | E09 | MIDI decoding, mappings и hot-plug | Завершён | 2026-11-02 | candidate | Documentation/Validation/E09/midi_mappings.md | jenya |
-| E10 | Lyrics, ChordPro и prompter | В работе | — | — | — | jenya |
-| E11 | Импорт, плейлист и persistence | Не начат | — | — | — | — |
+| E10 | Lyrics, ChordPro и prompter | Завершён | 2026-11-02 | candidate | Documentation/Validation/E10/lyrics_and_prompter.md | jenya |
+| E11 | Импорт, плейлист и persistence | В работе | — | — | — | jenya |
 | E12 | Измерение и оптимизация производительности | Не начат | — | — | — | — |
 | E13 | Packaging, безопасность и документация | Не начат | — | — | — | — |
 | E14 | Финальный regression и release decision | Не начат | — | — | — | — |
@@ -212,6 +212,11 @@
 | 2026-11-02 19:20 | E09.4..E09.5 | Семантика нот (неназначенные игнорируются) и порог сустейна >= 64 на rising edge | `MIDIManager.swift`, `MIDITests.swift` | SF-06 закрыт | `Documentation/Validation/E09/midi_mappings.md` | candidate | Antigravity |
 | 2026-11-02 19:25 | E09.8..E09.11 | Подключены next/previous действия, CoreMIDI hot-plug, 30 Гц UI coalescing | `MIDIManager.swift`, `AppState.swift`, `StageFlowMainView.swift` | Hot-plug и burst 1000 CC PASS | `Documentation/Validation/E09/midi_mappings.md` | candidate | Antigravity |
 | 2026-11-02 19:30 | Gate E09 | Пройден стоп-гейт E09: 70 тестов PASS (15 новых MIDI), 0 warnings, SF-06 полностью закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E09/midi_mappings.md` | candidate | jenya |
+| 2026-11-02 20:10 | E10.1..E10.4 | Исправлен расчёт долей секунд pow(10, count), метаданные LRC, множественные метки | `LyricsParser.swift`, `SongTrack.swift` | Дробные тайминги и теги PASS | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | Antigravity |
+| 2026-11-02 20:15 | E10.5..E10.6 | ChordPro директивы, Unicode/кириллица, современный async API загрузки метаданных | `LyricsParser.swift` | 0 deprecation warnings | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | Antigravity |
+| 2026-11-02 20:20 | E10.7..E10.9 | Динамическая активная строка (до следующего timestamp), верстка аккордов по сегментам | `SongTrack.swift`, `StagePrompterView.swift` | SF-08 закрыт, автоскролл оптимизирован | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | Antigravity |
+| 2026-11-02 20:25 | E10.10 | Обработка пустых строк, корректное поведение плейсхолдера, пакет регрессии E10 | `LyricsPrompterTests.swift` | 8 тестов PASS | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | Antigravity |
+| 2026-11-02 20:30 | Gate E10 | Пройден стоп-гейт E10: 78 тестов PASS (8 новых lyrics), 0 warnings, SF-08 полностью закрыт | `swift test`, `swift build` | PASS | `Documentation/Validation/E10/lyrics_and_prompter.md` | candidate | jenya |
 
 ### 3.3. Журнал блокеров
 
@@ -837,16 +842,16 @@
 
 ### Задачи
 
-- [ ] **E10.1 — Сначала добавить parser regression tests.** Зафиксировать дефект `[01:02.5]` = 62,5 секунды, а также двух- и трёхзначные fractions. Исправление начинается после воспроизведения failing case в отдельной ветке этапа.
-- [ ] **E10.2 — Исправить fractional seconds.** Для 1/2/3 цифр использовать делители 10/100/1000 соответственно. Проверить минуты, секунды и границы.
-- [ ] **E10.3 — Определить поддерживаемый LRC subset.** Timestamps, повторные timestamps одной строки, `offset`, metadata tags и пустые строки. Не интерпретировать metadata tags как аккорды.
-- [ ] **E10.4 — Обработать повторные timestamps.** Если строка имеет несколько timestamps, создавать корректные синхронизированные occurrences в хронологическом порядке, а не брать только первый.
-- [ ] **E10.5 — Сохранить ChordPro directives behavior.** Служебные directives не отображать как текст; chords извлекать только в допустимом контексте. Добавить Cyrillic, Unicode и inline chord tests.
-- [ ] **E10.6 — Перейти на async metadata loading.** Заменить deprecated `metadata` и `stringValue` на асинхронные `load` APIs с typed errors. Полный importer pipeline завершается в E11, но warnings должны быть устранены здесь.
-- [ ] **E10.7 — Исправить active line.** Активна последняя синхронизированная строка с timestamp ≤ currentTime до timestamp следующей синхронизированной строки; убрать фиксированные 3,8 секунды.
-- [ ] **E10.8 — Реализовать реальное chord alignment.** Использовать `characterIndex` и измерение prefix widths или эквивалентный согласованный layout. Проверить размеры шрифта 18/28/48 и длинные строки.
-- [ ] **E10.9 — Скроллить только при смене activeLineID.** Не запускать новую анимацию на каждом transport tick. При выключенном Auto-Scroll не выполнять программный scroll.
-- [ ] **E10.10 — Различать empty и failed lyrics.** Placeholder не должен скрывать ошибку чтения. Состояние empty, loaded и failed отображается различимо.
+- [x] **E10.1 — Сначала добавить parser regression tests.** Зафиксировать дефект `[01:02.5]` = 62,5 секунды, а также двух- и трёхзначные fractions. Исправление начинается после воспроизведения failing case в отдельной ветке этапа.
+- [x] **E10.2 — Исправить fractional seconds.** Для 1/2/3 цифр использовать делители 10/100/1000 соответственно. Проверить минуты, секунды и границы.
+- [x] **E10.3 — Определить поддерживаемый LRC subset.** Timestamps, повторные timestamps одной строки, `offset`, metadata tags и пустые строки. Не интерпретировать metadata tags как аккорды.
+- [x] **E10.4 — Обработать повторные timestamps.** Если строка имеет несколько timestamps, создавать корректные синхронизированные occurrences в хронологическом порядке, а не брать только первый.
+- [x] **E10.5 — Сохранить ChordPro directives behavior.** Служебные directives не отображать как текст; chords извлекать только в допустимом контексте. Добавить Cyrillic, Unicode и inline chord tests.
+- [x] **E10.6 — Перейти на async metadata loading.** Заменить deprecated `metadata` и `stringValue` на асинхронные `load` APIs с typed errors. Полный importer pipeline завершается в E11, но warnings должны быть устранены здесь.
+- [x] **E10.7 — Исправить active line.** Активна последняя синхронизированная строка с timestamp ≤ currentTime до timestamp следующей синхронизированной строки; убрать фиксированные 3,8 секунды.
+- [x] **E10.8 — Реализовать реальное chord alignment.** Использовать `characterIndex` и измерение prefix widths или эквивалентный согласованный layout. Проверить размеры шрифта 18/28/48 и длинные строки.
+- [x] **E10.9 — Скроллить только при смене activeLineID.** Не запускать новую анимацию на каждом transport tick. При выключенном Auto-Scroll не выполнять программный scroll.
+- [x] **E10.10 — Различать empty и failed lyrics.** Placeholder не должен скрывать ошибку чтения. Состояние empty, loaded и failed отображается различимо.
 
 ### Валидация E10
 
@@ -860,12 +865,12 @@
 
 ### Стоп-гейт E10
 
-- [ ] Все parser regressions исправлены и покрыты тестами.
-- [ ] Активная строка зависит от следующей timestamp, а не фиксированной длительности.
-- [ ] Аккорды визуально выровнены на всех заданных размерах.
-- [ ] Auto-scroll срабатывает только на смену строки и уважает Toggle.
-- [ ] Deprecated metadata warnings устранены.
-- [ ] Общий Definition of Done выполнен.
+- [x] Все parser regressions исправлены и покрыты тестами.
+- [x] Активная строка зависит от следующей timestamp, а не фиксированной длительности.
+- [x] Аккорды визуально выровнены на всех заданных размерах.
+- [x] Auto-scroll срабатывает только на смену строки и уважает Toggle.
+- [x] Deprecated metadata warnings устранены.
+- [x] Общий Definition of Done выполнен.
 
 ---
 
