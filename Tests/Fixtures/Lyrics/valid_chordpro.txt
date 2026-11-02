@@ -1,0 +1,6 @@
+{title: Test ChordPro Song}
+{artist: StageFlow Live}
+
+[Am]Here is the first line [F]with chords above
+[C]And the chorus starts right [G]here in the mix
+[Dm]Another line [Em]with chords [Am]resolving

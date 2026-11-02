@@ -1,0 +1,4 @@
+[invalid:tag]Line with non-timestamp tag
+[99:99.99]Out of order timestamp
+Not a tagged line at all
+[00:10]Missing fractional part
